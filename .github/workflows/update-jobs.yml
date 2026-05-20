@@ -1,0 +1,130 @@
+name: 채용 정보 정기 갱신
+
+on:
+  # 매일 오전 9시(KST, UTC+9 = 00:00 UTC) 자동 실행
+  schedule:
+    - cron: '0 0 * * *'
+
+  # 수동 실행 지원
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: '크롤링 페이지 수 (잡코리아)'
+        required: false
+        default: '3'
+
+jobs:
+  fetch-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 리포지토리 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: job-calendar/requirements.txt
+
+      - name: 의존성 설치
+        run: |
+          pip install -r job-calendar/requirements.txt
+
+      - name: 채용 데이터 수집
+        env:
+          SARAMIN_API_KEY: ${{ secrets.SARAMIN_API_KEY }}
+        working-directory: job-calendar
+        run: |
+          python -c "
+          import json
+          from datetime import datetime
+          from job_fetcher import fetch_all_jobs
+
+          print('=== 채용 데이터 수집 시작 ===')
+          print(f'실행 시각: {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")}')
+
+          jobs = fetch_all_jobs()
+          print(f'수집 완료: {len(jobs)}개 공고')
+
+          # JSON 파일로 저장
+          output = {
+              'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+              'total_count': len(jobs),
+              'jobs': jobs,
+          }
+
+          with open('data/jobs.json', 'w', encoding='utf-8') as f:
+              json.dump(output, f, ensure_ascii=False, indent=2)
+
+          print(f'data/jobs.json 저장 완료 ({len(jobs)}개)')
+          "
+
+      - name: 데이터 변경 확인 및 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # data 디렉토리가 없으면 생성
+          mkdir -p job-calendar/data
+
+          # 변경사항 확인
+          git add job-calendar/data/
+          if git diff --staged --quiet; then
+            echo "변경사항 없음 - 커밋 스킵"
+          else
+            TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
+            JOB_COUNT=$(python -c "import json; data=json.load(open('job-calendar/data/jobs.json')); print(data['total_count'])")
+            git commit -m "chore: 채용 데이터 자동 갱신 ($TIMESTAMP, ${JOB_COUNT}개)"
+            git push
+            echo "커밋 및 푸시 완료"
+          fi
+
+  # GitHub Pages 배포 (정적 데이터 기반)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: fetch-and-update
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: 리포지토리 체크아웃
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: job-calendar/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r job-calendar/requirements.txt
+
+      - name: 정적 사이트 빌드
+        working-directory: job-calendar
+        env:
+          SARAMIN_API_KEY: ${{ secrets.SARAMIN_API_KEY }}
+        run: |
+          python build_static.py
+
+      - name: Pages 아티팩트 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: job-calendar/dist
+
+      - name: GitHub Pages 배포
+        id: deployment
+        uses: actions/deploy-pages@v4

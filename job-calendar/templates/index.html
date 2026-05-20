@@ -4,51 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IT/인터넷 신입 채용 캘린더</title>
-    
+
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-    
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Noto Sans KR', sans-serif;
             background: #f5f7fa;
             color: #333;
         }
-        
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 24px 40px;
             box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
         }
-        
+
         .header h1 {
             font-size: 28px;
             font-weight: 700;
             margin-bottom: 8px;
         }
-        
+
         .header p {
             font-size: 14px;
             opacity: 0.9;
         }
-        
+
         .header .badges {
             margin-top: 12px;
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
-        
+
         .badge {
             background: rgba(255,255,255,0.2);
             padding: 4px 12px;
@@ -56,7 +56,72 @@
             font-size: 12px;
             font-weight: 500;
         }
-        
+
+        /* 필터 바 */
+        .filter-bar {
+            background: white;
+            padding: 16px 40px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .filter-bar label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Noto Sans KR', sans-serif;
+            background: white;
+            color: #333;
+            min-width: 140px;
+            transition: border-color 0.2s;
+        }
+
+        .filter-bar select:focus,
+        .filter-bar input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filter-bar .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-bar .reset-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: 'Noto Sans KR', sans-serif;
+            transition: background 0.2s;
+        }
+
+        .filter-bar .reset-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .filter-bar .filter-count {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 500;
+            margin-left: auto;
+        }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -65,90 +130,116 @@
             grid-template-columns: 1fr 360px;
             gap: 24px;
         }
-        
+
         @media (max-width: 1024px) {
             .container {
                 grid-template-columns: 1fr;
             }
+            .filter-bar {
+                padding: 12px 16px;
+            }
         }
-        
+
         .calendar-wrap {
             background: white;
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
-        
+
         .sidebar {
             display: flex;
             flex-direction: column;
             gap: 16px;
         }
-        
+
         .card {
             background: white;
             border-radius: 16px;
             padding: 20px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
-        
+
         .card h3 {
             font-size: 16px;
             font-weight: 700;
             margin-bottom: 12px;
             color: #333;
         }
-        
+
         .legend {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        
+
         .legend-item {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 13px;
         }
-        
+
         .legend-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
             flex-shrink: 0;
         }
-        
+
         .stats {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
-        
+
         .stat-item {
             text-align: center;
             padding: 12px;
             background: #f8f9ff;
             border-radius: 12px;
         }
-        
+
         .stat-number {
             font-size: 24px;
             font-weight: 700;
             color: #667eea;
         }
-        
+
         .stat-label {
             font-size: 11px;
             color: #888;
             margin-top: 4px;
         }
-        
+
+        .source-stats {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .source-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .source-saramin {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .source-jobkorea {
+            background: #fce4ec;
+            color: #c62828;
+        }
+
         .job-list {
             max-height: 400px;
             overflow-y: auto;
         }
-        
+
         .job-item {
             padding: 12px;
             border-bottom: 1px solid #f0f0f0;
@@ -156,30 +247,30 @@
             transition: background 0.2s;
             border-radius: 8px;
         }
-        
+
         .job-item:hover {
             background: #f8f9ff;
         }
-        
+
         .job-item .company {
             font-size: 11px;
             color: #667eea;
             font-weight: 500;
         }
-        
+
         .job-item .title {
             font-size: 13px;
             font-weight: 500;
             margin-top: 2px;
             line-height: 1.4;
         }
-        
+
         .job-item .meta {
             font-size: 11px;
             color: #999;
             margin-top: 4px;
         }
-        
+
         .job-item .deadline-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -188,22 +279,22 @@
             font-weight: 500;
             margin-top: 4px;
         }
-        
+
         .deadline-urgent {
             background: #ffeaea;
             color: #e53935;
         }
-        
+
         .deadline-soon {
             background: #fff3e0;
             color: #ff9800;
         }
-        
+
         .deadline-normal {
             background: #e3f2fd;
             color: #2196f3;
         }
-        
+
         .refresh-btn {
             width: 100%;
             padding: 12px;
@@ -216,12 +307,12 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
+
         .refresh-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
-        
+
         /* Modal */
         .modal-overlay {
             display: none;
@@ -235,11 +326,11 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .modal-overlay.active {
             display: flex;
         }
-        
+
         .modal {
             background: white;
             border-radius: 20px;
@@ -250,32 +341,32 @@
             overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        
+
         .modal h2 {
             font-size: 18px;
             font-weight: 700;
             margin-bottom: 16px;
             color: #333;
         }
-        
+
         .modal .info-row {
             display: flex;
             padding: 10px 0;
             border-bottom: 1px solid #f0f0f0;
             font-size: 14px;
         }
-        
+
         .modal .info-label {
             width: 80px;
             color: #888;
             font-weight: 500;
             flex-shrink: 0;
         }
-        
+
         .modal .info-value {
             color: #333;
         }
-        
+
         .modal .apply-btn {
             display: block;
             width: 100%;
@@ -291,7 +382,7 @@
             text-align: center;
             text-decoration: none;
         }
-        
+
         .modal .close-btn {
             position: absolute;
             top: 16px;
@@ -302,16 +393,16 @@
             cursor: pointer;
             color: #999;
         }
-        
+
         .modal-inner {
             position: relative;
         }
-        
+
         /* FullCalendar Customization */
         .fc {
             font-family: 'Noto Sans KR', sans-serif;
         }
-        
+
         .fc-event {
             border: none;
             border-radius: 4px;
@@ -319,26 +410,26 @@
             font-size: 11px;
             cursor: pointer;
         }
-        
+
         .fc-toolbar-title {
             font-size: 20px !important;
             font-weight: 700 !important;
         }
-        
+
         .fc-button-primary {
             background: #667eea !important;
             border-color: #667eea !important;
         }
-        
+
         .fc-button-primary:hover {
             background: #5a6fd6 !important;
         }
-        
+
         .fc-today-button {
             background: #764ba2 !important;
             border-color: #764ba2 !important;
         }
-        
+
         .fc-day-today {
             background: #f8f9ff !important;
         }
@@ -347,20 +438,53 @@
 <body>
     <div class="header">
         <h1>IT/인터넷 신입 채용 캘린더</h1>
-        <p>학부생을 위한 실시간 IT 채용 정보 캘린더 - 마감일 기준으로 한눈에 확인하세요!</p>
+        <p>학부생을 위한 실시간 IT 채용 정보 캘린더 - 사람인 + 잡코리아 통합</p>
         <div class="badges">
             <span class="badge">직무: IT/인터넷</span>
             <span class="badge">업종: IT/통신</span>
             <span class="badge">경력: 신입</span>
             <span class="badge">지역: 전국</span>
+            <span class="badge">데이터: 사람인 + 잡코리아</span>
         </div>
     </div>
-    
+
+    <!-- 필터 바 -->
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>회사</label>
+            <select id="filter-company">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>직무</label>
+            <select id="filter-category">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>소스</label>
+            <select id="filter-source">
+                <option value="">전체</option>
+                <option value="사람인">사람인</option>
+                <option value="잡코리아">잡코리아</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>지역</label>
+            <select id="filter-location">
+                <option value="">전국</option>
+            </select>
+        </div>
+        <button class="reset-btn" onclick="resetFilters()">초기화</button>
+        <span class="filter-count" id="filter-count"></span>
+    </div>
+
     <div class="container">
         <div class="calendar-wrap">
             <div id="calendar"></div>
         </div>
-        
+
         <div class="sidebar">
             <!-- 통계 -->
             <div class="card">
@@ -383,8 +507,9 @@
                         <div class="stat-label">지원 가능</div>
                     </div>
                 </div>
+                <div class="source-stats" id="source-stats"></div>
             </div>
-            
+
             <!-- 범례 -->
             <div class="card">
                 <h3>마감 임박도</h3>
@@ -411,20 +536,20 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- 마감 임박 공고 -->
             <div class="card">
                 <h3>마감 임박 공고</h3>
                 <div class="job-list" id="urgent-jobs"></div>
             </div>
-            
+
             <!-- 새로고침 -->
             <button class="refresh-btn" onclick="refreshData()">
-                🔄 채용 정보 새로고침
+                새로고침 (사람인 + 잡코리아)
             </button>
         </div>
     </div>
-    
+
     <!-- 상세 정보 모달 -->
     <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
@@ -435,17 +560,38 @@
             </div>
         </div>
     </div>
-    
+
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-    
+
     <script>
         let calendar;
         let allEvents = [];
-        
+
+        // 현재 필터 상태
+        function getFilterParams() {
+            const params = new URLSearchParams();
+            const company = document.getElementById('filter-company').value;
+            const category = document.getElementById('filter-category').value;
+            const source = document.getElementById('filter-source').value;
+            const location = document.getElementById('filter-location').value;
+
+            if (company) params.set('company', company);
+            if (category) params.set('job_category', category);
+            if (source) params.set('source', source);
+            if (location) params.set('location', location);
+
+            return params.toString();
+        }
+
+        function getEventsUrl() {
+            const params = getFilterParams();
+            return '/api/events' + (params ? '?' + params : '');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
-            
+
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'ko',
@@ -459,83 +605,136 @@
                     month: '월간',
                     list: '목록'
                 },
-                events: '/api/events',
+                events: function(info, successCallback, failureCallback) {
+                    fetch(getEventsUrl())
+                        .then(res => res.json())
+                        .then(data => {
+                            allEvents = data;
+                            successCallback(data);
+                            updateStats();
+                            updateUrgentList();
+                        })
+                        .catch(err => failureCallback(err));
+                },
                 eventClick: function(info) {
                     showJobDetail(info.event);
                 },
                 eventDidMount: function(info) {
-                    // 툴팁 설정
                     info.el.title = info.event.extendedProps.company + ' - ' + info.event.title;
-                },
-                loading: function(isLoading) {
-                    if (!isLoading) {
-                        updateStats();
-                        updateUrgentList();
-                    }
-                },
-                eventSourceSuccess: function(content) {
-                    allEvents = content;
                 }
             });
-            
+
             calendar.render();
-            
-            // 목록 데이터 로드
-            loadJobList();
+
+            // 필터 옵션 로드
+            loadFilterOptions();
+
+            // 필터 변경 이벤트
+            ['filter-company', 'filter-category', 'filter-source', 'filter-location'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyFilters);
+            });
         });
-        
-        function loadJobList() {
-            fetch('/api/events')
+
+        function loadFilterOptions() {
+            fetch('/api/filters')
                 .then(res => res.json())
                 .then(data => {
-                    allEvents = data;
-                    updateStats();
-                    updateUrgentList();
+                    // 회사 목록
+                    const companySelect = document.getElementById('filter-company');
+                    data.companies.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.textContent = c;
+                        companySelect.appendChild(opt);
+                    });
+
+                    // 직무 카테고리
+                    const categorySelect = document.getElementById('filter-category');
+                    data.categories.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.textContent = c;
+                        categorySelect.appendChild(opt);
+                    });
+
+                    // 지역
+                    const locationSelect = document.getElementById('filter-location');
+                    data.locations.forEach(l => {
+                        const opt = document.createElement('option');
+                        opt.value = l;
+                        opt.textContent = l;
+                        locationSelect.appendChild(opt);
+                    });
                 });
         }
-        
+
+        function applyFilters() {
+            calendar.refetchEvents();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-company').value = '';
+            document.getElementById('filter-category').value = '';
+            document.getElementById('filter-source').value = '';
+            document.getElementById('filter-location').value = '';
+            applyFilters();
+        }
+
         function updateStats() {
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
             let total = allEvents.length;
             let urgent = 0;
             let week = 0;
             let active = 0;
-            
+            let saraminCount = 0;
+            let jobkoreaCount = 0;
+
             allEvents.forEach(event => {
                 const daysLeft = event.extendedProps?.days_left;
+                const source = event.extendedProps?.source;
+
                 if (daysLeft !== undefined) {
                     if (daysLeft >= 0) active++;
                     if (daysLeft >= 0 && daysLeft <= 3) urgent++;
                     if (daysLeft >= 0 && daysLeft <= 7) week++;
                 }
+
+                if (source === '사람인') saraminCount++;
+                if (source === '잡코리아') jobkoreaCount++;
             });
-            
+
             document.getElementById('total-count').textContent = total;
             document.getElementById('urgent-count').textContent = urgent;
             document.getElementById('week-count').textContent = week;
             document.getElementById('active-count').textContent = active;
+
+            // 소스별 통계
+            document.getElementById('source-stats').innerHTML = `
+                <span class="source-badge source-saramin">사람인 ${saraminCount}건</span>
+                <span class="source-badge source-jobkorea">잡코리아 ${jobkoreaCount}건</span>
+            `;
+
+            // 필터 카운트
+            document.getElementById('filter-count').textContent =
+                total > 0 ? `${total}개 공고 표시 중` : '';
         }
-        
+
         function updateUrgentList() {
             const container = document.getElementById('urgent-jobs');
-            
-            // 마감일 가까운 순으로 정렬, 지원 가능한 것만
+
             const urgentEvents = allEvents
                 .filter(e => e.extendedProps?.days_left >= 0)
                 .sort((a, b) => a.extendedProps.days_left - b.extendedProps.days_left)
                 .slice(0, 10);
-            
+
             if (urgentEvents.length === 0) {
                 container.innerHTML = '<p style="color: #999; font-size: 13px; padding: 12px;">표시할 공고가 없습니다.</p>';
                 return;
             }
-            
+
             container.innerHTML = urgentEvents.map(event => {
                 const props = event.extendedProps;
                 const daysLeft = props.days_left;
-                
+
                 let badgeClass, badgeText;
                 if (daysLeft <= 3) {
                     badgeClass = 'deadline-urgent';
@@ -547,10 +746,14 @@
                     badgeClass = 'deadline-normal';
                     badgeText = `D-${daysLeft}`;
                 }
-                
+
+                const sourceBadge = props.source === '잡코리아'
+                    ? '<span class="source-badge source-jobkorea" style="font-size:9px;padding:2px 6px;">잡코리아</span>'
+                    : '<span class="source-badge source-saramin" style="font-size:9px;padding:2px 6px;">사람인</span>';
+
                 return `
-                    <div class="job-item" onclick="showJobDetailFromData(${JSON.stringify(event).replace(/"/g, '&quot;')})">
-                        <div class="company">${props.company}</div>
+                    <div class="job-item" onclick='showJobDetailFromData(${JSON.stringify(event).replace(/'/g, "&#39;")})'>
+                        <div class="company">${props.company} ${sourceBadge}</div>
                         <div class="title">${event.title.replace(/\[.*?\]\s*/, '')}</div>
                         <div class="meta">${props.location} · ${props.job_type}</div>
                         <span class="deadline-badge ${badgeClass}">${badgeText} (${props.deadline})</span>
@@ -558,12 +761,12 @@
                 `;
             }).join('');
         }
-        
+
         function showJobDetail(event) {
             const props = event.extendedProps;
-            
+
             document.getElementById('modal-title').textContent = event.title;
-            
+
             const daysLeft = props.days_left;
             let statusText, statusColor;
             if (daysLeft < 0) {
@@ -579,7 +782,11 @@
                 statusText = `D-${daysLeft}`;
                 statusColor = '#2196f3';
             }
-            
+
+            const sourceBadge = props.source === '잡코리아'
+                ? '<span class="source-badge source-jobkorea">잡코리아</span>'
+                : '<span class="source-badge source-saramin">사람인</span>';
+
             document.getElementById('modal-content').innerHTML = `
                 <div class="info-row">
                     <span class="info-label">회사명</span>
@@ -609,14 +816,18 @@
                     <span class="info-label">마감일</span>
                     <span class="info-value" style="color: ${statusColor}; font-weight: 600;">${props.deadline} (${statusText})</span>
                 </div>
+                <div class="info-row">
+                    <span class="info-label">출처</span>
+                    <span class="info-value">${sourceBadge}</span>
+                </div>
                 <a href="${props.url}" target="_blank" class="apply-btn">
-                    지원하러 가기 →
+                    지원하러 가기
                 </a>
             `;
-            
+
             document.getElementById('modal-overlay').classList.add('active');
         }
-        
+
         function showJobDetailFromData(eventData) {
             const fakeEvent = {
                 title: eventData.title,
@@ -624,30 +835,35 @@
             };
             showJobDetail(fakeEvent);
         }
-        
+
         function closeModal() {
             document.getElementById('modal-overlay').classList.remove('active');
         }
-        
-        // 모달 외부 클릭 닫기
+
         document.getElementById('modal-overlay').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
         });
-        
-        // ESC 키로 모달 닫기
+
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeModal();
         });
-        
+
         function refreshData() {
+            const btn = document.querySelector('.refresh-btn');
+            btn.textContent = '갱신 중...';
+            btn.disabled = true;
+
             fetch('/api/refresh', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     calendar.refetchEvents();
-                    loadJobList();
+                    btn.textContent = '새로고침 (사람인 + 잡코리아)';
+                    btn.disabled = false;
                     alert(`채용 정보가 갱신되었습니다! (${data.count}개 공고)`);
                 })
                 .catch(err => {
+                    btn.textContent = '새로고침 (사람인 + 잡코리아)';
+                    btn.disabled = false;
                     alert('갱신에 실패했습니다. 잠시 후 다시 시도해주세요.');
                 });
         }
