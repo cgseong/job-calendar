@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT/인터넷 신입 채용 캘린더</title>
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 40px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .header .badges {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .calendar-wrap {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        .card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 12px;
+            background: #f8f9ff;
+            border-radius: 12px;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        .job-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .job-item {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-radius: 8px;
+        }
+        
+        .job-item:hover {
+            background: #f8f9ff;
+        }
+        
+        .job-item .company {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .job-item .title {
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 2px;
+            line-height: 1.4;
+        }
+        
+        .job-item .meta {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        
+        .job-item .deadline-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        
+        .deadline-urgent {
+            background: #ffeaea;
+            color: #e53935;
+        }
+        
+        .deadline-soon {
+            background: #fff3e0;
+            color: #ff9800;
+        }
+        
+        .deadline-normal {
+            background: #e3f2fd;
+            color: #2196f3;
+        }
+        
+        .refresh-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 480px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        
+        .modal .info-row {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        
+        .modal .info-label {
+            width: 80px;
+            color: #888;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        
+        .modal .info-value {
+            color: #333;
+        }
+        
+        .modal .apply-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .modal .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .modal-inner {
+            position: relative;
+        }
+        
+        /* FullCalendar Customization */
+        .fc {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        .fc-event {
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        
+        .fc-toolbar-title {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+        }
+        
+        .fc-button-primary {
+            background: #667eea !important;
+            border-color: #667eea !important;
+        }
+        
+        .fc-button-primary:hover {
+            background: #5a6fd6 !important;
+        }
+        
+        .fc-today-button {
+            background: #764ba2 !important;
+            border-color: #764ba2 !important;
+        }
+        
+        .fc-day-today {
+            background: #f8f9ff !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>IT/인터넷 신입 채용 캘린더</h1>
+        <p>학부생을 위한 실시간 IT 채용 정보 캘린더 - 마감일 기준으로 한눈에 확인하세요!</p>
+        <div class="badges">
+            <span class="badge">직무: IT/인터넷</span>
+            <span class="badge">업종: IT/통신</span>
+            <span class="badge">경력: 신입</span>
+            <span class="badge">지역: 전국</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="calendar-wrap">
+            <div id="calendar"></div>
+        </div>
+        
+        <div class="sidebar">
+            <!-- 통계 -->
+            <div class="card">
+                <h3>채용 현황</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-count">0</div>
+                        <div class="stat-label">전체 공고</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="urgent-count">0</div>
+                        <div class="stat-label">3일 내 마감</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="week-count">0</div>
+                        <div class="stat-label">7일 내 마감</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="active-count">0</div>
+                        <div class="stat-label">지원 가능</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 범례 -->
+            <div class="card">
+                <h3>마감 임박도</h3>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #e53935;"></div>
+                        <span>3일 이내 마감 (긴급!)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #ff9800;"></div>
+                        <span>7일 이내 마감</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #2196f3;"></div>
+                        <span>14일 이내 마감</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #4caf50;"></div>
+                        <span>여유 있음</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #9e9e9e;"></div>
+                        <span>마감됨</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 마감 임박 공고 -->
+            <div class="card">
+                <h3>마감 임박 공고</h3>
+                <div class="job-list" id="urgent-jobs"></div>
+            </div>
+            
+            <!-- 새로고침 -->
+            <button class="refresh-btn" onclick="refreshData()">
+                🔄 채용 정보 새로고침
+            </button>
+        </div>
+    </div>
+    
+    <!-- 상세 정보 모달 -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-inner">
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <h2 id="modal-title"></h2>
+                <div id="modal-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    
+    <script>
+        let calendar;
+        let allEvents = [];
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,listWeek'
+                },
+                buttonText: {
+                    today: '오늘',
+                    month: '월간',
+                    list: '목록'
+                },
+                events: '/api/events',
+                eventClick: function(info) {
+                    showJobDetail(info.event);
+                },
+                eventDidMount: function(info) {
+                    // 툴팁 설정
+                    info.el.title = info.event.extendedProps.company + ' - ' + info.event.title;
+                },
+                loading: function(isLoading) {
+                    if (!isLoading) {
+                        updateStats();
+                        updateUrgentList();
+                    }
+                },
+                eventSourceSuccess: function(content) {
+                    allEvents = content;
+                }
+            });
+            
+            calendar.render();
+            
+            // 목록 데이터 로드
+            loadJobList();
+        });
+        
+        function loadJobList() {
+            fetch('/api/events')
+                .then(res => res.json())
+                .then(data => {
+                    allEvents = data;
+                    updateStats();
+                    updateUrgentList();
+                });
+        }
+        
+        function updateStats() {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            let total = allEvents.length;
+            let urgent = 0;
+            let week = 0;
+            let active = 0;
+            
+            allEvents.forEach(event => {
+                const daysLeft = event.extendedProps?.days_left;
+                if (daysLeft !== undefined) {
+                    if (daysLeft >= 0) active++;
+                    if (daysLeft >= 0 && daysLeft <= 3) urgent++;
+                    if (daysLeft >= 0 && daysLeft <= 7) week++;
+                }
+            });
+            
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('urgent-count').textContent = urgent;
+            document.getElementById('week-count').textContent = week;
+            document.getElementById('active-count').textContent = active;
+        }
+        
+        function updateUrgentList() {
+            const container = document.getElementById('urgent-jobs');
+            
+            // 마감일 가까운 순으로 정렬, 지원 가능한 것만
+            const urgentEvents = allEvents
+                .filter(e => e.extendedProps?.days_left >= 0)
+                .sort((a, b) => a.extendedProps.days_left - b.extendedProps.days_left)
+                .slice(0, 10);
+            
+            if (urgentEvents.length === 0) {
+                container.innerHTML = '<p style="color: #999; font-size: 13px; padding: 12px;">표시할 공고가 없습니다.</p>';
+                return;
+            }
+            
+            container.innerHTML = urgentEvents.map(event => {
+                const props = event.extendedProps;
+                const daysLeft = props.days_left;
+                
+                let badgeClass, badgeText;
+                if (daysLeft <= 3) {
+                    badgeClass = 'deadline-urgent';
+                    badgeText = `D-${daysLeft}`;
+                } else if (daysLeft <= 7) {
+                    badgeClass = 'deadline-soon';
+                    badgeText = `D-${daysLeft}`;
+                } else {
+                    badgeClass = 'deadline-normal';
+                    badgeText = `D-${daysLeft}`;
+                }
+                
+                return `
+                    <div class="job-item" onclick="showJobDetailFromData(${JSON.stringify(event).replace(/"/g, '&quot;')})">
+                        <div class="company">${props.company}</div>
+                        <div class="title">${event.title.replace(/\[.*?\]\s*/, '')}</div>
+                        <div class="meta">${props.location} · ${props.job_type}</div>
+                        <span class="deadline-badge ${badgeClass}">${badgeText} (${props.deadline})</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function showJobDetail(event) {
+            const props = event.extendedProps;
+            
+            document.getElementById('modal-title').textContent = event.title;
+            
+            const daysLeft = props.days_left;
+            let statusText, statusColor;
+            if (daysLeft < 0) {
+                statusText = '마감됨';
+                statusColor = '#9e9e9e';
+            } else if (daysLeft <= 3) {
+                statusText = `D-${daysLeft} (긴급!)`;
+                statusColor = '#e53935';
+            } else if (daysLeft <= 7) {
+                statusText = `D-${daysLeft}`;
+                statusColor = '#ff9800';
+            } else {
+                statusText = `D-${daysLeft}`;
+                statusColor = '#2196f3';
+            }
+            
+            document.getElementById('modal-content').innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">회사명</span>
+                    <span class="info-value">${props.company}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">근무지</span>
+                    <span class="info-value">${props.location}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">경력</span>
+                    <span class="info-value">${props.experience}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">고용형태</span>
+                    <span class="info-value">${props.job_type}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">업종</span>
+                    <span class="info-value">${props.industry}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">급여</span>
+                    <span class="info-value">${props.salary}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">마감일</span>
+                    <span class="info-value" style="color: ${statusColor}; font-weight: 600;">${props.deadline} (${statusText})</span>
+                </div>
+                <a href="${props.url}" target="_blank" class="apply-btn">
+                    지원하러 가기 →
+                </a>
+            `;
+            
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+        
+        function showJobDetailFromData(eventData) {
+            const fakeEvent = {
+                title: eventData.title,
+                extendedProps: eventData.extendedProps
+            };
+            showJobDetail(fakeEvent);
+        }
+        
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+        
+        // 모달 외부 클릭 닫기
+        document.getElementById('modal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+        
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+        
+        function refreshData() {
+            fetch('/api/refresh', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    calendar.refetchEvents();
+                    loadJobList();
+                    alert(`채용 정보가 갱신되었습니다! (${data.count}개 공고)`);
+                })
+                .catch(err => {
+                    alert('갱신에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                });
+        }
+    </script>
+</body>
+</html>
