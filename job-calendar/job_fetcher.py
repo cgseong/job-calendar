@@ -1,107 +1,289 @@
 """
-채용 정보 수집 모듈
-- 사람인 Open API를 통한 실시간 채용 정보 수집
-- API 키 미설정 시 샘플 데이터 제공 (데모용)
+채용 정보 수집 모듈 (웹 크롤링 방식)
+- 사람인(saramin.co.kr) 검색 결과를 BeautifulSoup으로 파싱
+- IT개발/데이터 직무, 전 지역, 신입 대상
+- API 키 불필요
 """
 import requests
-import json
-import os
+import time
+import re
 from datetime import datetime, timedelta
-from config import SARAMIN_API_KEY, SARAMIN_API_URL, SEARCH_PARAMS
+from bs4 import BeautifulSoup
+from config import (
+    SARAMIN_BASE_URL,
+    SEARCH_KEYWORDS,
+    SEARCH_PARAMS,
+    CRAWL_CONFIG,
+    REQUEST_HEADERS,
+)
 
 
 def fetch_jobs_from_saramin():
     """
-    사람인 Open API에서 IT/인터넷 신입 채용공고를 가져옵니다.
-    
+    사람인 웹사이트에서 IT개발/데이터 신입 채용공고를 크롤링합니다.
+    여러 검색 키워드를 사용하여 다양한 IT 직무의 공고를 수집합니다.
+
     Returns:
         list: 채용공고 목록 (dict 리스트)
     """
-    if not SARAMIN_API_KEY:
-        print("[INFO] 사람인 API 키가 설정되지 않았습니다. 샘플 데이터를 사용합니다.")
-        return get_sample_jobs()
-    
-    params = {
-        "access-key": SARAMIN_API_KEY,
-        **SEARCH_PARAMS
-    }
-    
-    try:
-        response = requests.get(SARAMIN_API_URL, params=params, timeout=10)
-        response.raise_for_status()
-        
-        data = response.json()
-        jobs = data.get("jobs", {}).get("job", [])
-        
-        return parse_saramin_jobs(jobs)
-    
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] 사람인 API 호출 실패: {e}")
+    all_jobs = {}  # URL 기준 중복 제거용 dict
+    max_total = CRAWL_CONFIG["max_total_jobs"]
+
+    for keyword in SEARCH_KEYWORDS:
+        if len(all_jobs) >= max_total:
+            break
+
+        jobs = _crawl_keyword(keyword)
+        for job in jobs:
+            if len(all_jobs) >= max_total:
+                break
+            # URL 기준 중복 제거
+            job_key = job.get("url", job.get("id", ""))
+            if job_key and job_key not in all_jobs:
+                all_jobs[job_key] = job
+
+    result = list(all_jobs.values())
+    print(f"[INFO] 총 {len(result)}개의 IT개발/데이터 채용공고를 수집했습니다.")
+
+    if not result:
+        print("[WARN] 크롤링 결과가 없습니다. 샘플 데이터를 사용합니다.")
         return get_sample_jobs()
 
+    return result
 
-def parse_saramin_jobs(jobs):
+
+def _crawl_keyword(keyword):
     """
-    사람인 API 응답을 캘린더 이벤트 형식으로 변환합니다.
-    
+    특정 키워드로 사람인 채용공고를 크롤링합니다.
+
     Args:
-        jobs (list): 사람인 API 원본 응답의 job 리스트
-    
+        keyword (str): 검색 키워드
+
     Returns:
         list: 파싱된 채용공고 리스트
     """
-    parsed = []
-    
-    for job in jobs:
-        position = job.get("position", {})
-        company = job.get("company", {}).get("detail", {})
-        
-        # 마감일 파싱
-        expiration_timestamp = job.get("expiration-timestamp", "")
-        if expiration_timestamp:
-            try:
-                deadline = datetime.fromtimestamp(int(expiration_timestamp))
-                deadline_str = deadline.strftime("%Y-%m-%d")
-            except (ValueError, TypeError):
-                deadline_str = ""
+    jobs = []
+    max_pages = CRAWL_CONFIG["max_pages_per_keyword"]
+    delay = CRAWL_CONFIG["request_delay"]
+
+    for page in range(1, max_pages + 1):
+        params = {
+            **SEARCH_PARAMS,
+            "searchword": keyword,
+            "recruitPage": str(page),
+        }
+
+        try:
+            response = requests.get(
+                SARAMIN_BASE_URL,
+                params=params,
+                headers=REQUEST_HEADERS,
+                timeout=CRAWL_CONFIG["timeout"],
+            )
+            response.raise_for_status()
+
+            page_jobs = _parse_search_results(response.text)
+            jobs.extend(page_jobs)
+
+            print(f"  [크롤링] '{keyword}' 페이지 {page}: {len(page_jobs)}건 수집")
+
+            if len(page_jobs) < 10:
+                # 결과가 적으면 더 이상 페이지가 없는 것
+                break
+
+            if page < max_pages:
+                time.sleep(delay)
+
+        except requests.exceptions.RequestException as e:
+            print(f"  [ERROR] '{keyword}' 페이지 {page} 크롤링 실패: {e}")
+            break
+
+    return jobs
+
+
+def _parse_search_results(html):
+    """
+    사람인 검색 결과 HTML을 파싱하여 채용공고 데이터를 추출합니다.
+
+    Args:
+        html (str): 검색 결과 HTML
+
+    Returns:
+        list: 파싱된 채용공고 리스트
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    items = soup.select(".item_recruit")
+    jobs = []
+
+    for item in items:
+        try:
+            job = _parse_job_item(item)
+            if job and _is_it_related(job):
+                jobs.append(job)
+        except Exception as e:
+            # 개별 항목 파싱 실패 시 건너뛰기
+            continue
+
+    return jobs
+
+
+def _parse_job_item(item):
+    """
+    개별 채용공고 항목을 파싱합니다.
+
+    Args:
+        item: BeautifulSoup element (.item_recruit)
+
+    Returns:
+        dict: 파싱된 채용공고 정보
+    """
+    # 회사명
+    company_el = item.select_one(".corp_name a")
+    company = company_el.text.strip() if company_el else ""
+
+    # 채용 제목 및 URL
+    title_el = item.select_one(".job_tit a")
+    title = title_el.text.strip() if title_el else ""
+    job_url = ""
+    if title_el and title_el.get("href"):
+        href = title_el["href"]
+        if href.startswith("http"):
+            job_url = href
         else:
-            deadline_str = job.get("expiration-date", "")
-        
-        # 시작일 (공고 등록일)
-        opening_timestamp = job.get("opening-timestamp", "")
-        if opening_timestamp:
-            try:
-                start_date = datetime.fromtimestamp(int(opening_timestamp))
-                start_str = start_date.strftime("%Y-%m-%d")
-            except (ValueError, TypeError):
-                start_str = ""
-        else:
-            start_str = ""
-        
-        parsed.append({
-            "id": job.get("id", ""),
-            "title": position.get("title", "채용공고"),
-            "company": company.get("name", ""),
-            "location": position.get("location", {}).get("name", "전국"),
-            "experience": position.get("experience-level", {}).get("name", "신입"),
-            "job_type": position.get("job-type", {}).get("name", ""),
-            "industry": position.get("industry", {}).get("name", "IT/통신"),
-            "deadline": deadline_str,
-            "start_date": start_str,
-            "url": job.get("url", ""),
-            "salary": job.get("salary", {}).get("name", "회사내규에 따름"),
-        })
-    
-    return parsed
+            job_url = f"https://www.saramin.co.kr{href}"
+
+    # 근무 조건 (지역, 경력, 학력, 고용형태, 급여)
+    conditions = item.select(".job_condition span")
+    cond_texts = [c.text.strip() for c in conditions]
+
+    location = cond_texts[0] if len(cond_texts) > 0 else "전국"
+    experience = cond_texts[1] if len(cond_texts) > 1 else "신입"
+    education = cond_texts[2] if len(cond_texts) > 2 else ""
+    job_type = cond_texts[3] if len(cond_texts) > 3 else ""
+    salary = cond_texts[4] if len(cond_texts) > 4 else "회사내규에 따름"
+
+    # 마감일
+    deadline_el = item.select_one(".job_date .date")
+    deadline_text = deadline_el.text.strip() if deadline_el else ""
+    deadline_date = _parse_deadline(deadline_text)
+
+    # 업종/직무 키워드
+    sector_el = item.select_one(".job_sector")
+    sector = ""
+    if sector_el:
+        sector = sector_el.text.strip()
+        # '수정일', '등록일' 이후 텍스트 제거
+        sector = re.split(r"\s*(수정일|등록일)\s*", sector)[0].strip()
+
+    if not title or not company:
+        return None
+
+    return {
+        "id": _generate_id(company, title),
+        "title": title,
+        "company": company,
+        "location": location,
+        "experience": experience,
+        "education": education,
+        "job_type": job_type,
+        "industry": sector if sector else "IT/통신",
+        "deadline": deadline_date,
+        "start_date": "",  # 크롤링으로는 등록일 정확히 알기 어려움
+        "url": job_url,
+        "salary": salary,
+    }
+
+
+def _parse_deadline(deadline_text):
+    """
+    마감일 텍스트를 YYYY-MM-DD 형식으로 변환합니다.
+
+    Args:
+        deadline_text (str): 마감일 텍스트 (예: "~ 06/15(일)", "내일마감", "채용시")
+
+    Returns:
+        str: YYYY-MM-DD 형식 날짜 문자열, 파싱 불가 시 빈 문자열
+    """
+    today = datetime.now()
+
+    if not deadline_text:
+        return ""
+
+    # "내일마감"
+    if "내일" in deadline_text:
+        deadline = today + timedelta(days=1)
+        return deadline.strftime("%Y-%m-%d")
+
+    # "오늘마감"
+    if "오늘" in deadline_text:
+        return today.strftime("%Y-%m-%d")
+
+    # "채용시", "상시채용" → 30일 후로 설정
+    if "채용시" in deadline_text or "상시" in deadline_text:
+        deadline = today + timedelta(days=30)
+        return deadline.strftime("%Y-%m-%d")
+
+    # "~ MM/DD(요일)" 형식
+    match = re.search(r"(\d{2})/(\d{2})", deadline_text)
+    if match:
+        month = int(match.group(1))
+        day = int(match.group(2))
+        year = today.year
+
+        # 월이 현재보다 작으면 내년으로 간주
+        if month < today.month - 1:
+            year += 1
+
+        try:
+            deadline = datetime(year, month, day)
+            return deadline.strftime("%Y-%m-%d")
+        except ValueError:
+            return ""
+
+    return ""
+
+
+def _is_it_related(job):
+    """
+    채용공고가 IT개발/데이터 직무와 관련이 있는지 판별합니다.
+
+    Args:
+        job (dict): 채용공고 정보
+
+    Returns:
+        bool: IT 관련 여부
+    """
+    it_keywords = [
+        "개발", "프론트", "백엔드", "풀스택", "서버",
+        "웹", "앱", "모바일", "소프트웨어", "SW",
+        "Java", "Python", "React", "Spring", "Node",
+        "AI", "인공지능", "머신러닝", "딥러닝", "데이터",
+        "DBA", "DevOps", "클라우드", "인프라", "보안",
+        "QA", "테스트", "자동화", "게임", "Unity",
+        "iOS", "Android", "Kotlin", "Flutter", "API",
+        "시스템", "네트워크", "블록체인", "임베디드", "펌웨어",
+        "SE", "엔지니어", "IT", "정보", "컴퓨터",
+    ]
+
+    check_text = f"{job.get('title', '')} {job.get('industry', '')}"
+
+    return any(kw.lower() in check_text.lower() for kw in it_keywords)
+
+
+def _generate_id(company, title):
+    """공고 고유 ID 생성"""
+    import hashlib
+    raw = f"{company}_{title}"
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()[:12]
 
 
 def get_sample_jobs():
     """
     데모용 샘플 채용 데이터를 생성합니다.
-    실제 IT/통신 업계 신입 채용 형태를 반영합니다.
+    크롤링 실패 시 폴백으로 사용됩니다.
     """
     today = datetime.now()
-    
+
     sample_jobs = [
         {
             "id": "sample_001",
@@ -131,7 +313,7 @@ def get_sample_jobs():
         },
         {
             "id": "sample_003",
-            "title": "2025 신입 개발자 채용 (AI/ML)",
+            "title": "2026 신입 개발자 채용 (AI/ML)",
             "company": "삼성SDS",
             "location": "서울 송파구",
             "experience": "신입",
@@ -209,7 +391,7 @@ def get_sample_jobs():
         },
         {
             "id": "sample_009",
-            "title": "2025 하반기 신입 개발자 공개채용",
+            "title": "2026 하반기 신입 개발자 공개채용",
             "company": "LG CNS",
             "location": "서울 마포구",
             "experience": "신입",
@@ -233,73 +415,8 @@ def get_sample_jobs():
             "url": "https://career.woowahan.com",
             "salary": "4,200만원 이상",
         },
-        {
-            "id": "sample_011",
-            "title": "게임 서버 개발자 (신입/경력)",
-            "company": "넥슨",
-            "location": "경기 성남시",
-            "experience": "신입",
-            "job_type": "정규직",
-            "industry": "IT/통신",
-            "deadline": (today + timedelta(days=15)).strftime("%Y-%m-%d"),
-            "start_date": (today - timedelta(days=1)).strftime("%Y-%m-%d"),
-            "url": "https://career.nexon.com",
-            "salary": "회사내규에 따름",
-        },
-        {
-            "id": "sample_012",
-            "title": "[신입] 풀스택 개발자 (Node.js/React)",
-            "company": "당근",
-            "location": "서울 서초구",
-            "experience": "신입",
-            "job_type": "정규직",
-            "industry": "IT/통신",
-            "deadline": (today + timedelta(days=9)).strftime("%Y-%m-%d"),
-            "start_date": (today - timedelta(days=5)).strftime("%Y-%m-%d"),
-            "url": "https://about.daangn.com/jobs",
-            "salary": "회사내규에 따름",
-        },
-        {
-            "id": "sample_013",
-            "title": "인프라 엔지니어 신입 (리눅스/네트워크)",
-            "company": "KT",
-            "location": "서울 종로구",
-            "experience": "신입",
-            "job_type": "정규직",
-            "industry": "IT/통신",
-            "deadline": (today + timedelta(days=18)).strftime("%Y-%m-%d"),
-            "start_date": (today - timedelta(days=9)).strftime("%Y-%m-%d"),
-            "url": "https://recruit.kt.com",
-            "salary": "3,500만원 이상",
-        },
-        {
-            "id": "sample_014",
-            "title": "[신입] Android 앱 개발자 (Kotlin)",
-            "company": "야놀자",
-            "location": "서울 강남구",
-            "experience": "신입",
-            "job_type": "정규직",
-            "industry": "IT/통신",
-            "deadline": (today + timedelta(days=11)).strftime("%Y-%m-%d"),
-            "start_date": (today - timedelta(days=3)).strftime("%Y-%m-%d"),
-            "url": "https://yanolja.in/ko/recruit",
-            "salary": "회사내규에 따름",
-        },
-        {
-            "id": "sample_015",
-            "title": "DBA/데이터베이스 관리자 (신입)",
-            "company": "SKT",
-            "location": "서울 중구",
-            "experience": "신입",
-            "job_type": "정규직",
-            "industry": "IT/통신",
-            "deadline": (today + timedelta(days=4)).strftime("%Y-%m-%d"),
-            "start_date": (today - timedelta(days=12)).strftime("%Y-%m-%d"),
-            "url": "https://www.sktelecom.com/recruit",
-            "salary": "4,500만원 이상",
-        },
     ]
-    
+
     return sample_jobs
 
 
@@ -307,32 +424,30 @@ def get_calendar_events(jobs=None):
     """
     채용공고를 FullCalendar 이벤트 형식으로 변환합니다.
     마감일 기준으로 캘린더에 표시됩니다.
-    
+
     Args:
-        jobs (list, optional): 채용공고 리스트. None이면 API에서 가져옴.
-    
+        jobs (list, optional): 채용공고 리스트. None이면 크롤링으로 가져옴.
+
     Returns:
         list: FullCalendar 이벤트 형식 리스트
     """
     if jobs is None:
         jobs = fetch_jobs_from_saramin()
-    
+
     events = []
-    
-    # 마감일 임박도에 따른 색상 지정
     today = datetime.now().date()
-    
+
     for job in jobs:
         if not job.get("deadline"):
             continue
-        
+
         try:
             deadline = datetime.strptime(job["deadline"], "%Y-%m-%d").date()
         except (ValueError, TypeError):
             continue
-        
+
         days_left = (deadline - today).days
-        
+
         # 색상 지정 (마감 임박도)
         if days_left < 0:
             color = "#9e9e9e"  # 회색 - 마감됨
@@ -344,11 +459,11 @@ def get_calendar_events(jobs=None):
             color = "#2196f3"  # 파랑 - 14일 이내
         else:
             color = "#4caf50"  # 초록 - 여유
-        
+
         event = {
             "id": job.get("id", ""),
             "title": f"[{job.get('company', '')}] {job.get('title', '')}",
-            "start": job.get("start_date", job["deadline"]),
+            "start": job["deadline"],
             "end": job["deadline"],
             "color": color,
             "extendedProps": {
@@ -361,22 +476,30 @@ def get_calendar_events(jobs=None):
                 "url": job.get("url", ""),
                 "deadline": job["deadline"],
                 "days_left": days_left,
-            }
+            },
         }
         events.append(event)
-    
+
     return events
 
 
 if __name__ == "__main__":
     # 테스트 실행
-    print("=== IT/인터넷 신입 채용 정보 수집 ===")
+    print("=" * 60)
+    print("  IT개발/데이터 신입 채용 정보 수집 (사람인 웹 크롤링)")
+    print("=" * 60)
+
     jobs = fetch_jobs_from_saramin()
     print(f"\n총 {len(jobs)}개의 채용공고를 수집했습니다.\n")
-    
-    for job in jobs[:5]:
+
+    print("-" * 60)
+    for job in jobs[:10]:
         print(f"  [{job['company']}] {job['title']}")
-        print(f"    - 마감일: {job['deadline']}")
-        print(f"    - 근무지: {job['location']}")
-        print(f"    - 급여: {job['salary']}")
+        print(f"    마감일: {job['deadline']} | 지역: {job['location']}")
+        print(f"    경력: {job['experience']} | 형태: {job['job_type']}")
+        print(f"    URL: {job['url'][:60]}...")
         print()
+
+    # 캘린더 이벤트 변환 테스트
+    events = get_calendar_events(jobs)
+    print(f"\n캘린더 이벤트 {len(events)}개 생성 완료")
