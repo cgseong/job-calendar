@@ -49,4 +49,4 @@ REQUEST_HEADERS = {
 }
 
 # Flask 설정
-FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
+FLASK_PORT = int(os.getenv("FLASK_PORT", 5001))
