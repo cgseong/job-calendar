@@ -117,9 +117,31 @@ def api_refresh():
 
 
 if __name__ == "__main__":
+    import socket
+
+    def find_available_port(start_port=5001, max_tries=10):
+        """사용 가능한 포트를 찾습니다."""
+        for port in range(start_port, start_port + max_tries):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(("0.0.0.0", port))
+                    return port
+            except OSError:
+                continue
+        return start_port + max_tries
+
+    port = FLASK_PORT
+    # 포트가 사용 중이면 자동으로 다른 포트 탐색
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("0.0.0.0", port))
+    except OSError:
+        port = find_available_port(port + 1)
+        print(f"[WARN] 포트 {FLASK_PORT}이 사용 중입니다. 포트 {port}으로 시작합니다.")
+
     print("=" * 50)
     print("  IT/인터넷 신입 채용 캘린더 서버 시작")
-    print("  http://localhost:5000")
+    print(f"  http://localhost:{port}")
     print("  데이터 소스: 사람인 API + 잡코리아 크롤링")
     print("=" * 50)
-    app.run(debug=True, port=FLASK_PORT, host="0.0.0.0", use_reloader=False)
+    app.run(debug=True, port=port, host="0.0.0.0", use_reloader=False)
