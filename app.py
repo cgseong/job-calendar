@@ -122,4 +122,4 @@ if __name__ == "__main__":
     print("  http://localhost:5000")
     print("  데이터 소스: 사람인 API + 잡코리아 크롤링")
     print("=" * 50)
-    app.run(debug=True, port=FLASK_PORT, host="0.0.0.0")
+    app.run(debug=True, port=FLASK_PORT, host="0.0.0.0", use_reloader=False)
