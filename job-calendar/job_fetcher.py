@@ -420,19 +420,106 @@ def get_sample_jobs():
     return sample_jobs
 
 
-def get_calendar_events(jobs=None):
+def fetch_all_jobs():
+    """
+    모든 채용 데이터를 수집합니다. (app.py 호환용)
+    사람인 웹 크롤링을 통해 IT개발/데이터 채용공고를 가져옵니다.
+
+    Returns:
+        list: 채용공고 목록
+    """
+    return fetch_jobs_from_saramin()
+
+
+def apply_filters(jobs, filters):
+    """
+    채용공고 목록에 필터를 적용합니다.
+
+    Args:
+        jobs (list): 채용공고 리스트
+        filters (dict): 필터 조건
+            - company (str): 회사명 (부분 일치)
+            - job_category (str): 직무 카테고리 (부분 일치)
+            - source (str): 데이터 소스 (현재는 '사람인'만 존재)
+            - location (str): 지역 (부분 일치)
+
+    Returns:
+        list: 필터링된 채용공고 리스트
+    """
+    filtered = jobs
+
+    if filters.get("company"):
+        keyword = filters["company"].lower()
+        filtered = [j for j in filtered if keyword in j.get("company", "").lower()]
+
+    if filters.get("job_category"):
+        keyword = filters["job_category"].lower()
+        filtered = [
+            j for j in filtered
+            if keyword in j.get("title", "").lower()
+            or keyword in j.get("industry", "").lower()
+        ]
+
+    if filters.get("location"):
+        keyword = filters["location"].lower()
+        filtered = [j for j in filtered if keyword in j.get("location", "").lower()]
+
+    # source 필터 (현재는 모두 사람인이므로 무시)
+    if filters.get("source") and filters["source"] != "all":
+        pass  # 향후 다중 소스 지원 시 구현
+
+    return filtered
+
+
+def get_available_filters(jobs):
+    """
+    현재 수집된 채용공고에서 사용 가능한 필터 옵션을 추출합니다.
+
+    Args:
+        jobs (list): 채용공고 리스트
+
+    Returns:
+        dict: 필터 옵션 목록
+    """
+    companies = sorted(set(j.get("company", "") for j in jobs if j.get("company")))
+    locations = sorted(set(j.get("location", "").split(" ")[0] for j in jobs if j.get("location")))
+    sources = ["사람인"]
+
+    # 직무 카테고리 추출 (industry 필드에서)
+    categories = set()
+    for j in jobs:
+        industry = j.get("industry", "")
+        for keyword in industry.split(","):
+            keyword = keyword.strip()
+            if keyword:
+                categories.add(keyword)
+
+    return {
+        "companies": companies[:50],  # 상위 50개만
+        "locations": [loc for loc in locations if loc],
+        "categories": sorted(categories)[:30],
+        "sources": sources,
+    }
+
+
+def get_calendar_events(jobs=None, filters=None):
     """
     채용공고를 FullCalendar 이벤트 형식으로 변환합니다.
     마감일 기준으로 캘린더에 표시됩니다.
 
     Args:
         jobs (list, optional): 채용공고 리스트. None이면 크롤링으로 가져옴.
+        filters (dict, optional): 필터 조건. None이면 전체 표시.
 
     Returns:
         list: FullCalendar 이벤트 형식 리스트
     """
     if jobs is None:
         jobs = fetch_jobs_from_saramin()
+
+    # 필터 적용
+    if filters:
+        jobs = apply_filters(jobs, filters)
 
     events = []
     today = datetime.now().date()
