@@ -271,7 +271,7 @@ with col4:
 st.markdown("---")
 
 # ===== 캘린더 뷰 (월별 요약) =====
-tab1, tab2, tab3 = st.tabs(["📅 캘린더 뷰", "📋 리스트 뷰", "📊 통계"])
+tab1, tab2, tab3, tab4 = st.tabs(["📅 캘린더 뷰", "📋 리스트 뷰", "📊 통계", "🏢 부산 공공기관"])
 
 with tab1:
     st.subheader("📅 마감일 캘린더")
@@ -414,6 +414,100 @@ with tab3:
             st.bar_chart(pd.Series(urgency_data))
     else:
         st.info("통계를 표시할 데이터가 없습니다.")
+
+with tab4:
+    st.subheader("🏢 부산지역 공공기관 채용 정보")
+    st.markdown("부산 소재 공공기관의 채용 공고만 필터링하여 보여줍니다.")
+
+    # 공공기관 키워드 목록
+    public_org_keywords = [
+        "공사", "공단", "공공", "진흥원", "연구원", "재단",
+        "센터", "원자력", "항만", "교통", "환경", "수자원",
+        "정보통신", "과학기술", "한국", "국립", "시설관리",
+        "도시공사", "관광공사", "해양", "부산", "BPA",
+        "BIPA", "동남권", "부산정보산업진흥원",
+    ]
+
+    # 부산지역 + 공공기관 필터링
+    busan_public_jobs = []
+    for job in jobs:  # 전체 jobs에서 필터 (사이드바 필터 무관)
+        location = job.get("location", "").lower()
+        company = job.get("company", "")
+        title = job.get("title", "")
+        industry = job.get("industry", "")
+
+        # 부산 지역 확인
+        is_busan = "부산" in location
+
+        # 공공기관 확인 (회사명 또는 제목에 공공기관 키워드 포함)
+        is_public = any(
+            kw in company or kw in title or kw in industry
+            for kw in public_org_keywords
+        )
+
+        if is_busan and is_public:
+            busan_public_jobs.append(job)
+
+    # 통계 표시
+    busan_total = len(busan_public_jobs)
+    busan_active = sum(
+        1 for j in busan_public_jobs
+        if get_days_left(j.get("deadline", "")) is not None
+        and get_days_left(j.get("deadline", "")) >= 0
+    )
+
+    col_b1, col_b2, col_b3 = st.columns(3)
+    with col_b1:
+        st.metric("전체 공고", busan_total)
+    with col_b2:
+        st.metric("지원 가능", busan_active)
+    with col_b3:
+        st.metric("마감됨", busan_total - busan_active)
+
+    st.markdown("---")
+
+    if busan_public_jobs:
+        # 마감 임박순 정렬
+        busan_public_jobs.sort(key=lambda x: x.get("deadline", "9999-12-31"))
+
+        for job in busan_public_jobs:
+            days_left = get_days_left(job.get("deadline", ""))
+            urgency = get_urgency_label(days_left)
+
+            # 이모지 결정
+            if days_left is not None and 0 <= days_left <= 3:
+                emoji = "🔴"
+            elif days_left is not None and 0 <= days_left <= 7:
+                emoji = "🟠"
+            elif days_left is not None and 0 <= days_left <= 14:
+                emoji = "🔵"
+            elif days_left is not None and days_left > 14:
+                emoji = "🟢"
+            else:
+                emoji = "⚫"
+
+            with st.expander(
+                f"{emoji} [{job.get('company', '')}] {job.get('title', '')}",
+                expanded=False,
+            ):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown(f"**회사명:** {job.get('company', '')}")
+                    st.markdown(f"**근무지:** {job.get('location', '')}")
+                    st.markdown(f"**경력:** {job.get('experience', '')}")
+                    st.markdown(f"**고용형태:** {job.get('job_type', '')}")
+                with col_b:
+                    st.markdown(f"**업종:** {job.get('industry', '')}")
+                    st.markdown(f"**급여:** {job.get('salary', '')}")
+                    st.markdown(f"**마감일:** {job.get('deadline', '')} ({urgency})")
+
+                if job.get("url"):
+                    st.link_button("🔗 지원하러 가기", job["url"])
+    else:
+        st.info(
+            "현재 부산지역 공공기관 채용 공고가 없습니다.\n\n"
+            "크롤링 데이터에 부산 소재 공공기관 공고가 포함되면 여기에 표시됩니다."
+        )
 
 # 푸터
 st.markdown("---")
