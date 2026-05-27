@@ -419,33 +419,33 @@ with tab4:
     st.subheader("🏢 부산지역 공공기관 채용 정보")
     st.markdown("부산 소재 공공기관의 채용 공고만 필터링하여 보여줍니다.")
 
-    # 공공기관 키워드 목록
-    public_org_keywords = [
-        "공사", "공단", "공공", "진흥원", "연구원", "재단",
-        "센터", "원자력", "항만", "교통", "환경", "수자원",
-        "정보통신", "과학기술", "한국", "국립", "시설관리",
-        "도시공사", "관광공사", "해양", "부산", "BPA",
-        "BIPA", "동남권", "부산정보산업진흥원",
+    # 부산 소재 공공기관 목록 (정확한 기관명)
+    busan_public_orgs = [
+        "부산시청",
+        "부산시 구청",
+        "국가수리과학연구소",
+        "한전KDN",
+        "캠코",
+        "한국남부발전",
+        "영화진흥위원회",
+        "한국자산관리공사",
+        "주택도시보증공사",
+        "부산교통공사",
+        "부산도시공사",
+        "한국해양진흥공사",
     ]
 
-    # 부산지역 + 공공기관 필터링
+    # 부산 공공기관 채용 필터링
     busan_public_jobs = []
     for job in jobs:  # 전체 jobs에서 필터 (사이드바 필터 무관)
-        location = job.get("location", "").lower()
         company = job.get("company", "")
-        title = job.get("title", "")
-        industry = job.get("industry", "")
 
-        # 부산 지역 확인
-        is_busan = "부산" in location
-
-        # 공공기관 확인 (회사명 또는 제목에 공공기관 키워드 포함)
-        is_public = any(
-            kw in company or kw in title or kw in industry
-            for kw in public_org_keywords
+        # 회사명이 부산 공공기관 목록에 포함되는지 확인
+        is_busan_public = any(
+            org in company for org in busan_public_orgs
         )
 
-        if is_busan and is_public:
+        if is_busan_public:
             busan_public_jobs.append(job)
 
     # 통계 표시
